@@ -1,0 +1,68 @@
+.TH BIHOURLY 8
+.SH NAME
+bihourly \- track ethernet/ip address pairs
+.SH SYNOPSIS
+.na
+bihourly
+.SH "DESCRIPTION"
+.B bihourly
+is a script that automates the operation of
+.B arpsnmp(8)
+by executing
+.B arpfetch(8)
+on a series of hostnames and then
+sending the results to
+.B arpsnmp(8)
+for analysis.
+.LP
+The result is a report of the current pairings
+between ip addresses and the corresponding ethernet address
+of the network hardware as reported by
+.B snmpwalk(8).
+Activity
+is logged and noted changes are reported by email.
+.LP
+In its working directory
+.B bihourly
+expects a file named
+.IR list
+which contains a space separated list of hostnames to be queried
+and a file named
+.IR cname
+which holds the SNMP community name by which to query these hosts.
+.LP
+Contrary to the name,
+.B bihourly
+does not run twice every hour. It
+runs once each time it is invoked. For repeated operation
+.B bihourly
+must be invoked on a periodic basis by a program like
+.B cron(1).
+.SH FILES
+.na
+.nh
+.nf
+/var/lib/arpwatch - default working directory
+list - file containing names of hosts to query
+cname - file containing the SNMP community name by which to query
+.ad
+.hy
+.fi
+.SH "SEE ALSO"
+.na
+.nh
+.BR arpsnmp (8),
+.BR arpfetch(8),
+.BR snmpwalk (8),
+.BR cron (8)
+.ad
+.hy
+.SH BUGS
+This script has been obsoleted in arpwatch NG.
+Do not send any bug reports.
+.SH AUTHORS
+Craig Leres of the
+Lawrence Berkeley National Laboratory Network Research Group,
+University of California, Berkeley, CA.
+
+This manual page was contributed by Hugo Graumann.

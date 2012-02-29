@@ -1,0 +1,293 @@
+NG 1.7
+-Update configure system
+o config.{sub,guess} to support x86_64 better
+o configure.in to check for pcap.h and various other headers / functions
+-Move bihourly to contrib/ and re-add man-page
+ for both, thanks to Alex Shubnik
+
+NG 1.6:
+-Clean up the reporting via a central report function description table
+o makes it easier to add custom reporting functions
+-Add a paragraph to FAQ about compilation under cygwin
+ thanks to Urs Meier for contributing
+-Remove unneeded stuff
+o massagevendor-old
+o missingcodes.txt
+o FILES
+-Change char version[] to a const char *version for cleanliness
+-Update arpsnmp a bit [which still is deprecated]
+-Small cleanups here&there
+
+NG 1.5:
+-Report arp.dat and ethercode.dat reading failures in an explicit way
+ thanks to Chuck Chargin Jr. for pointing it out
+
+NG 1.4:
+-Report all error arpwatch can detect via the standard report modes
+ thanks to Russ Starr for suggesting
+o New are
+"bogon",
+"ether broadcast",
+"ether mismatch",
+"ether too short",
+"ether bad format",
+"ether wrong type_ip",
+"ether bad length",
+"ether wrong op",
+"ether wrong RARP",
+"ether wrong type",
+o this could mean breakage with old arpwatch operation!
+-Make report mode 2 output of actions parseable by using "," as delimiter
+-Remove ethercodes.dat.old - unused legacy
+-Update ethercodes.dat from nmap-4.11
+-Further static'fy local functions
+
+NG 1.3:
+-Buggy internal version only
+
+NG 1.2:
+-Fix make install target: man-pages will be installed now, too
+ thanks to Aleksandr Shubnik
+-Update ethercodes.dat from nmap-4.00
+
+NG 1.1:
+-Fix and update man-page to reflect the NG changes
+-Add new feature: -P pcap_filter to use tcpdump-style filters
+ thanks to John P. Rouillard for suggesting a filtering facility
+-Improve error handling for pcap_compile() to print expression
+-Small \n error-msg fix
+
+NG 1.0:
+-Fix small typo in man-page
+-Allow getopt() to complain about unknown options (remove opterr=0)
+-Rework help output and print to stdout, not stderr
+
+DROP10:
+-Fix longstanding and unnoticed BUG:
+when running in default/daemon mode arp.dat was not checkpointed and as 
+such never updated.
+
+DROP9:
+-Update ethercodes.dat from nmap-3.93
+-Fix usage output; -t is for mailto, not -m (thanks to Jan Ostrochovsky)
+-Add -F as mailfrom option (as everybody wants it; kudos Jan Ostrochovsky)
+-Change CHECKPOINT (write arp DB to file) time to 3*60 seconds, was 10*60
+-Change mkdep to also use mktemp if tempfile fails
+
+DROP8:
+-New configure option "--enable-fancy-mac" so MAC adresses are printed always
+in xx:xx:.. notation e.g. 00:0a: instead of 0:0a
+
+DROP7:
+-Continue merging of Debian patches
+o 11opt_sendmail_path: specify sendmail prog path
+o 14opt_mailto: specify mailto address
+o 15opt_username: drop privileges to this username (without restart)
+
+-Disable savestr() - functionality covered by strndup()
+-Make replacement strndup() safer with checks
+-Drop into daemon mode the latest possible moment
+o replace some syslog() calls with fprintf()s
+
+DROP6:
+-Merge a lot of vendor fixes from Debian (thanks to Peter Kelemen)
+o 06debian_manpages: man-pages for arpfetch, arp2ethers
+o 21arp2ethers: misc. awk fixes
+o 26unconf_iface: continue if unconfigured interface, but don't use syslog()
+o 25ignore_zero_ip: don't enter IP 0.0.0.0 into db
+o 22secure_tempfile: use a secure tmpfile name in bihourly, mkdep and arpfetch
+o 07debian_srcdir: add some missing $(srcdir)
+o 12opt_nopromisc: -p not enter the device promisc mode
+o 05debian_fhs: ethercodes into share/arpwatch, arp.dat into var/lib/arpwatch
+
+-Add more fprintf(stderr, ...) on failures and make error reporting better
+-Misc cleanups
+
+DROP5:
+-Remove #ifdef DEBUG altogether - enabled by default, so what.
+ Since DROP2 I had no luck with stable releases, sorry.
+-Add first & dirty make install hack to install necessary files
+-Reorg and simplify arpwatch.c initialization code
+
+DROP4.1:
+-Some systems don't have strndup() - sorry, overread that it's a GNU extension
+ so let configure check and have a replacement function ready [QUICKFIX]
+ Thanks to Jim Sandoz
+
+DROP4:
+-Compile fix for arpwatch.c - report_mode was missing
+-Segfault fix for arpwatch.c<-report.c: report_f was not initialized
+-Apply vendor security patch against hostname overflow + strcpy()->strncpy()
+-Shorten checkpoint time from 15 to 10 minutes (even lower values sensible?)
+
+DROP3:
+-Close stdin/out/err in daemon mode again
+-report() is now a dispatching function for the actual reporting function
+-Change notification codes from clear-text("new station") to int
+-Add defines for the former and lookup table
+-Change all calls to report() to use ACTION_ defines
+-DECNet Flipflops are also reported via report(), not dosyslog()
+
+DROP2:
+-Add stdout reporting mode (switch -m)
+-Update ethercodes from nmap-3.81
+
+DROP1:
+-Remove all unnecessary (void) casts when retcode was not used
+-Update ethercodes.dat to the ones from nmap
+-indent the code
+-Remove register hints for variables (nothing really considered)
+-Remove {scss,rcs}id 
+
+
+-- FORKED Mon Feb  7 13:31:36 CET 2005
+
+@(#) $Id: CHANGES,v 1.41 2004/01/22 22:25:43 leres Exp $ (LBL)
+
+v2.1 Thu Jan 22 14:05:27 PST 2004
+
+- Add FDDI support. Based on code contributed by Flemming Johansen
+  (fsj@csd.cri.dk)
+
+- New -f flag overrides the default database filename.
+
+- New -r flag allows tcpdump save files to be read.
+
+- memcpy() doesn't handle overlapping buffers so use bcopy() instead.
+  Reported by Attila Bruncsak (attila.bruncsak@itu.int)
+
+- Have configure determine the sendmail path.
+
+- Don't bother updating hostnames when reading arp.dat since this can
+  be expensive in the number of dns requests generated.
+
+- Improve robostness of the aprfetch script.
+
+- Update massagevendor to convert the IEEE public Organizationally
+  Unique Identifier (OUI) file format.
+
+- Don't use -e with awk, not all versions support it. Suggested by
+  Stephen Thompson (thompson@pobox.upenn.edu)
+
+- Convert usage of mktemp() to mkstemp().
+
+- Add -n flag (alternate networks) and -N flag (don't report bogons).
+
+- Improve ethernet address parser error checking.
+
+- More concessions to linux.
+
+- Special case dn_skipname() check for bind 8.
+
+- Convert arp2ethers from csh to sh.
+
+v2.0.2 Sat Jun  7 03:15:03 PDT 1997
+
+- Look for "_res" in -lresolv since Solaris doesn't have it in libc.
+  Problem first reported by Blair Zajac (blair@gps.caltech.edu)
+
+v2.0.1 Wed Jan  1 20:43:12 PST 1997
+
+- Rework signal setup to accommodate Linux.
+
+- Autoconf -lstr for DLPI under HPUX.
+
+v2.0 Sat Oct  5 22:14:05 PDT 1996
+
+- Add arpsnmp.
+
+- Updated ethercodes.dat from http://www.cavebear.com/CaveBear/Ethernet/
+
+- Ethernet vendor codes table now dynamic.
+
+- Linux support added.
+
+v1.11 Sat Sep 14 14:24:26 PDT 1996
+
+- Rewrite gmt2local() to avoid problematic os dependencies.
+
+- Fixed the autoconf "wait status" detection for OSF. Resulted from a
+  bug report from Guy Loucks (ukloug@engsyd.bhp.com.au)
+
+- Autoconf ARPDIR as suggested by Davin Milun (milun@cs.buffalo.edu)
+
+- Use autoconf to make ether_header and ether_arp struct accesses work
+  on more systems.
+
+v1.10 Mon Jul 29 19:03:24 PDT 1996
+
+- Disable hinfo lookups when dn_skipname() isn't available.
+
+v1.9 Sun Fri Jul  5 23:12:20 PDT 1996
+
+- Added getopt() externs for systems that don't define them. Thanks to
+  Jun Shoji (jshoji@jsnext.linc.or.jp)
+
+- Fixed swapped arguments to MEMCPY(). Thanks to Jun Shoji.
+
+- On systems that have it, use sigset() instead of signal() since
+  signal() has different semantics on these systems. Resulted from a
+  bug report by Michael Neef (neef@neuroinformatik.ruhr-uni-bochum.de)
+
+- Modified to handle timezones more generically.
+
+v1.8 Fri Jun  7 19:45:09 PDT 1996
+
+- Convert to autoconf.
+
+v1.7 Mon Jun 12 03:25:50 PDT 1995
+
+- Fixed bug that was causing endless nameserver lookups.
+
+- Fixed the makefile to use -I. to pick up the files in lbl directory.
+
+v1.6 Tue Apr  4 13:35:10 PDT 1995
+
+- Fix a typo in configure regarding libresolv logic. Thanks to Mark
+  Andrews (mandrews@alias.com).
+
+- Added os prototype support.
+
+v1.5 Sun Apr  2 19:40:16 PDT 1995
+
+- Forgot to include addresses.h.in. Thanks to Tamas Pinter
+  (pinter@donio.bgytf.hu).
+
+v1.4 Wed Mar 15 20:26:31 PST 1995
+
+- Updated ethercodes.dat from ftp://ftp.lcs.mit.edu/pub/map/EtherNet-codes
+
+- Changed to use -lresolv under SunOS 4 since the stock libc doesn't
+  have dns routines).
+
+- Change configure to create addresses.h from addresses.h.in when it
+  doesn't already exist.
+
+v1.3 Tue Oct  4 12:55:53 PDT 1994
+
+- Port to Solaris. New configuration script.
+
+- dns.c: Define BUFSIZ if it's not defined by stdio.h.
+
+- Lowered the snaplen to what we really need.
+
+v1.2 Tue Oct 12 00:34:47 PDT 1993
+
+- arpwatch.c: Modified to use libpcap.
+
+- db.c: Rewrote data structures to handle an arbitrary number of
+ethernet addresses per ip address.
+
+- report.c: Simplified child process management. Queue mail messages if
+  we get too many at once.
+
+v1.1 Sat Aug 14 20:42:46 PDT 1993
+
+- arpwatch.c: Fixed byte ordering problems. Thanks to Yoshitaka
+  Tokugawa (toku@dit.co.jp).
+
+- inet.c: Modified to work with 4.4 BSD.
+
+v1.0 Tue Jun 16  3:05:31 PDT 1992
+
+- Initial release.

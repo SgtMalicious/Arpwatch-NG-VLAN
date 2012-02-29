@@ -1,0 +1,46 @@
+0:0:5a	SK	(Schneider & Koch in Europe and Syskonnect outside of Europe)
+0:0:5a	Xerox 806 (unregistered)
+0:17:0	Kabel
+0:20:67	Node Runner Inc
+0:48:54	Digital SemiConductor		21143/2 based 10/100
+0:4f:49	Realtek
+0:4f:4b	Pine Technology Ltd.
+0:55:0	Xerox
+0:5:9a	PowerComputing (Mac clone)
+0:6:d	Hewlett-Packard			JetDirect token-ring interfaces
+0:7:d	Cisco				2511 Token Ring
+0:8:52	Technically Elite Concepts
+0:8:55	Fermilab
+0:90:b1	Cisco
+0:90:b1	Cisco
+10:0:90	Hewlett-Packard			Advisor products
+10:0:d4	DEC
+10:0:e0	Apple A/UX			(modified addresses for licensing)
+2:4:6	BBN				internal usage (not registered)
+2:60:60	3Com
+2:7:1	Interlan [now Racal-InterLAN]	DEC (UNIBUS or QBUS), Apollo, Cisco
+2:7:1	Racal-Datacom
+2:a0:c9	Intel
+2:cf:1f	CMC				Masscomp; Silicon Graphics; Prime EXL
+2:e0:3b	Prominet Corporation		Gigabit Ethernet Switch
+2e:2e:2e	LAA (Locally Administered Address) for Meditech Systems
+3c:0:0	3Com				dual function (V.34 modem + Ethernet) card
+40:0:3	Net Ware (?)
+44:45:53	Microsoft			(Windows95 internal "adapters")
+44:46:49	DFI (Diamond Flower Industries)
+47:54:43	GTC (Not registered!)		(This number is a multicast!)
+48:44:53	HDS ???
+48:4c:0	Network Solutions
+48:54:e8	winbond?
+4:88:45	Bay Networks			token ring line card
+4c:42:4c	Information Modes software modified addresses (not registered?)
+52:54:0	Realtek (UpTech? also reported)
+52:54:4c	Novell 2000
+52:54:ab	REALTEK (a Realtek 8029 based PCI Card)
+56:58:57	Aculab plc			audio bridges
+80:ad:0	CNET Technology Inc. (Probably an error, see instead 0080AD)
+8:0:10	AT&T [misrepresentation of 800010?]
+9:0:6a	AT&T
+c0:0:0	Western Digital (may be reversed 00 00 C0?)
+e2:c:f	Kingston Technologies
+ec:10:0	Enance Source Co., Ltd.	PC clones(?)

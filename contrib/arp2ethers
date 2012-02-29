@@ -1,0 +1,95 @@
+#!/bin/sh
+# @(#) $Id: arp2ethers,v 1.4 2002/01/05 19:40:47 leres Exp $ (LBL)
+#
+# Convert arp.dat to ethers format
+#
+#	- sort on timestamp, newest first
+#	- discard entries without simple hostnames
+#	- discard all but first occurance of each ethernet address
+#	- discard entires with raw ip addresses for simple names
+#	- remove ip address and timestamp fields
+#	- append "-ip" to hosts with decnet address too
+#	- append "-old", "-old1", etc. as necessary
+#	- sort
+#
+# 1999-04-12	KELEMEN Peter <fuji@debian.org>
+#	Use sh(1) instead of csh(1).
+#
+# 2000-03-21	Erik Warmelink <erik@selwerd.nl>
+#	Use next instead of continue in included p.awk.
+#
+# 2004-06-26	Javier Fernandez-Sanguino <jfs@debian.org>
+#	Use a default file or the one provided in the command line
+
+FILE=/var/lib/arpwatch/arp.dat
+[ -n "$1" ] && FILE=$1
+[ -r "$FILE" ] || {
+	echo "Cannot read file $FILE"
+	exit 1
+}
+
+sort +2rn $FILE | \
+    awk 'NF == 4 { print }' | \
+# 1999-04-12	KELEMEN Peter <fuji@debian.org>
+#    awk -f p.awk | \
+    awk '
+# Only print the first ethernet address seen
+
+{
+	e = $1
+	if (seen[e])
+		next
+	seen[e] = 1
+	print $0
+}
+    ' | \
+    egrep -v '\.[0-9][0-9]*$' | \
+    sed -e 's/	.*	/	/' | \
+# 1999-04-12	KELEMEN Peter <fuji@debian.org>
+#    awk -f d.awk | \
+    awk '
+# DECnet hacking
+
+BEGIN {
+	n = 0
+	sdecnet = "aa:0:4:"
+	ldecnet = length(sdecnet)
+}
+
+{
+	++n
+	e[n] = $1
+	h[n] = $2
+	if (sdecnet == substr($1, 1, ldecnet))
+		decnet[$2] = 1
+}
+
+END {
+	for (i = 1; i <= n; ++i) {
+		if (decnet[h[i]] && sdecnet != substr(e[i], 1, ldecnet))
+			h[i] = h[i] "-ip"
+		print e[i] "\t" h[i]
+	}
+}
+    ' | \
+# 1999-04-12	KELEMEN Peter <fuji@debian.org>
+#    awk -f e.awk | \
+    awk '
+# Add -old suffix to ethers file, as required. Assumed sorted input
+
+{
+	if (!seen[$2]) {
+		seen[$2] = 1
+		print
+		next
+	}
+	h = $2 "-old"
+	s = h
+	for (n = 1; seen[h]; ++n)
+		h = s n
+	seen[h] = 1
+	print $1 "\t" h
+	next
+}
+    ' | \
+    sort

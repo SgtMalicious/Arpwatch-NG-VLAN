@@ -1,0 +1,25 @@
+#!/bin/sh
+# @(#) $Id: massagevendor,v 1.2 2000/09/17 21:41:22 leres Exp $ (LBL)
+#
+# - Massage:
+#
+#	http://standards.ieee.org/regauth/oui/oui.txt
+#
+#   into ethercodes.dat format.
+#
+# - Deal with duplicates in oui.txt (concatenate company names)
+#
+# - Also add in missingcodes.txt but allow oui.txt to override
+#
+(sed \
+    -e '/^[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]  *(base 16)/!d' \
+    -e 's/  *(base 16)[ 	][	 ]*/	/' \
+    $* | \
+    awk -f euppertolower.awk | \
+    sed -n \
+    -e 's/^\([0-9A-Za-z][0-9A-Za-z]\)\([0-9A-Za-z][0-9A-Za-z]\)\([0-9A-Za-z][0-9A-Za-z]\)[ 	]\(.*\)$/\1:\2:\3	\4/' \
+    -e 's/^0//' -e 's/:0\([0-9A-Za-z]\)/:\1/g' -e p | \
+    sort | \
+    awk -f duplicates.awk ; sort missingcodes.txt ) | \
+    awk -f p.awk | \
+    sort

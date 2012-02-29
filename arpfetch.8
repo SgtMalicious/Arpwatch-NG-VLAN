@@ -1,0 +1,63 @@
+.TH ARPFETCH 8
+.SH NAME
+arpfetch \- obtain ethernet/ip address pairings via snmp
+.SH SYNOPSIS
+.na
+arpfetch
+.I host
+.I cname
+.SH "DESCRIPTION"
+.B arpfetch
+gets pairings between ip addresses and the ethernet address of the
+corresponding network card. These pairings are retrieved from other
+network entities, like routers, by the SNMP protocol using
+.BR snmpwalk(1) .
+Mostly, this program is an agent that
+is used to get data for
+.BR arpsnmp(8) .
+This fetching of address mappings can be further automated by use of
+.BR bihourly(8) .
+.LP
+Both command arguments must be present for proper operation.
+The
+.IR host
+argument is the hostname of the network entity being queried and the
+.IR cname
+argument is the SNMP community name of the network entity.
+.LP
+The information is presented on
+.IR stdout
+in a format compatible with
+.BR arpsnmp(8)
+and
+.BR arpwatch(8) .
+.LP
+Further information about SNMP can be found in
+.BR snmpcmd(1)
+and
+.BR variables(5) .
+.SH "SEE ALSO"
+.na
+.nh
+.BR arpsnmp (8),
+.BR arpwatch(8),
+.BR bihourly (8),
+.BR snmpwalk (1),
+.BR snmpcmd (1),
+.BR variables (5)
+.ad
+.hy
+.SH BUGS
+Please send bug reports to arpwatch@ee.lbl.gov.
+.SH AUTHORS
+Craig Leres of the
+Lawrence Berkeley National Laboratory Network Research Group,
+University of California, Berkeley, CA.
+.LP
+The current version is available via anonymous ftp:
+.LP
+.RS
+.I ftp://ftp.ee.lbl.gov/arpwatch.tar.gz
+.RE
+.LP
+This manual page was contributed by Hugo Graumann.

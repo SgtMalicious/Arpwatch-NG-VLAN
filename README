@@ -1,0 +1,65 @@
+This is a forked version of the original arpwatch licensed under the BSD
+license (afaik).
+I think it's okay that I release it with my changes under GPL.
+
+If you have suggestions or patches, please use freshmeat.net to locate the
+project and then use "contact developer". Only there a recent and working
+email address is published.
+DO NOT PUBLISH MY EMAIL ADDRESS ANYWHERE - IS SUBJECT TO CHANGE.
+
+Thank you.
+
+-Freek/2005
+
+Original README following
+
+-- -
+
+ARPWATCH 2.1
+Lawrence Berkeley National Laboratory
+Network Research Group
+arpwatch@ee.lbl.gov
+ftp://ftp.ee.lbl.gov/arpwatch.tar.gz
+
+This directory contains source code for arpwatch and arpsnmp, tools
+that monitors ethernet or fddi activity and maintain a database of
+ethernet/ip address pairings. It also reports certain changes via
+email.
+
+Arpwatch uses libpcap, a system-independent interface for user-level
+packet capture.  Before building arpwatch, you must first retrieve and
+build libpcap, also from LBL, in:
+
+	ftp://ftp.ee.lbl.gov/libpcap.tar.gz
+
+Once libpcap is built (either install it or make sure arpwatch and
+libpcap share the same parent directory), you can build arpwatch using
+the procedure in the INSTALL file.
+
+Arpsnmp has the same database features of arpwatch but relies on an
+external agent to collect the arp data. This distribution contains a
+script, arpfetch, that uses snmpwalk from the CMU SNMP package. This
+package is available from:
+
+	ftp://ftp.net.cmu.edu/pub/snmp-dist/cmu-snmp*.tar.gz
+
+It should be trivial to adapt the output of any snmp query program
+for use with arpsnmp.
+
+The ethernet vendor codes in ethercodes.dat is only current at the
+time the last arpwatch release was assembled. The data it contains
+come from the IEEE's website:
+
+    http://standards.ieee.org/regauth/oui/oui.txt
+
+This is the IEEE's public Organizationally Unique Identifier (OUI)
+listing. If you run across an OUI that isn't in ethercodes.dat (or
+find any other deficiency) get a new copy from the IEEE website.
+
+Under FreeBSD you can do this using use fetch(1). Next convert the
+file to ethercodes.dat format using the massagevendor script.
+
+If you still have a problem with ethercodes.dat, contact the IEEE
+website (after all, they're the ones who assign OUIs...)
+
+Please send bugs and comments to arpwatch@ee.lbl.gov.

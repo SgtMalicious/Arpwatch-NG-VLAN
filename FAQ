@@ -1,0 +1,54 @@
+Q:
+The arp.dat files do not contain fresh information about observed
+stations.
+
+A:
+arpwatch uses some kind of "journalling" and information is only commited
+each CHECKPOINT_INTERVAL seconds, defined in arpwatch.h
+It used to be historically 10*60 seconds; as of this writing it was set to 
+3*60 seconds.
+
+
+Q:
+Why does arpwatch show / arp.dat contain MAC adresses like 0:16:e:f7:2:fa instead of 00:16:0e:f7:2:fa ?
+
+A:
+'00' is explicit notation for high_nibble/low_nibble, both being '0'.
+'0' is just hexadecimal notation for the same bitstring.
+You can build arpwatch with --enable-fancy-mac to change this behaviour.
+
+
+Q:
+Capturing is using too much CPU on a high traffic network.
+
+A:
+On Linux use mmap()'ed libpcap instead: http://public.lanl.gov/cpw/
+
+
+Q:
+Compiling under Cygwin doesn't work out of the box.
+
+A:
+Yes. The standard Cygwin is missing many header files needed. Also, Cygwin is
+some kind of a non-standard platform. ATM I don't plan direct support.
+Please see the following description (contributed by Urs Meier):
+
+In order to compile it I took this as a base:
+http://www.cygwin.com/ml/cygwin/2003-07/msg01772.html
+
+I took the files here
+ftp://ftp.scn.ru/pub/os/FreeBSD/5.4-RELEASE/usr/include/net:
+/usr/include/net/ethernet.h
+/usr/include/net/if_arp.h
+
+ftp://ftp.scn.ru/pub/os/FreeBSD/5.4-RELEASE/usr/include/netinet:
+/usr/include/netinet/if_ether.h
+
+I could not find a proper  /usr/include/netinet/if_arp.h at all but it
+worked without. Anyway there might be a nicer solution to get this done.
+May be the cygwin people should add the missing header files in the
+future. I did not talk to them.
+
+I think I had to copy libwpcap.a to c:\cygwin\usr\local\lib\libpcap.a to
+make linking work.
+

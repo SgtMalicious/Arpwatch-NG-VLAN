@@ -1,0 +1,10 @@
+-Make e2str() thread-safe
+o many references in code that rely on static buffer
+
+-For e.g. action of "changed mac" have extra info, like
+timestamp, delta, action, hostname, oldhostname, 
+ip, oldip, mac, oldmac, vendor, old vendor
+
+-Remove all hard-coded occurences to syslog()
+
+-Redesign ARP DB, ethercodes DB

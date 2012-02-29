@@ -1,0 +1,101 @@
+@(#) $Id: INSTALL,v 1.16 2004/01/22 22:05:11 leres Exp $ (LBL)
+
+If you have not built libpcap, do so first (unless you only want to
+build arpsnmp). See the README file in this directory for the ftp
+location.
+
+You will need an ANSI C compiler to build the arpwatch package. The
+configure script will abort if your compiler is not ANSI compliant. If
+this happens, use the GNU C compiler, available via anonymous ftp:
+
+	ftp://ftp.gnu.org/gnu/gcc/
+
+After libpcap has been built (either install it or make sure it's in
+../libpcap), edit the BINDEST and MANDEST paths in Makefile.in and
+the address defines in addresses.h.in. Then run ./configure (a shell
+script).  "configure" will determine your system attributes and
+generate an appropriate Makefile and addresses.h from Makefile.in and
+addresses.h.in.
+
+Now build arpwatch by running "make". If you only want to build arpsnmp,
+and don't have libpcap, type "make arpsnmp"
+
+Note that if you do not already have an arp.dat database file, the
+configure script will automatically create an empty one for you.
+
+It's recommended that you run arpwatch with the -d flag at first since
+it has the potential of generating a huge number of email messages
+when started with an empty database file on a busy subnet. Finally,
+remember that startup error messages are syslog'ed, so if arpwatch
+won't run, check your syslogs first.
+
+If you want to run arpsnmp, there are two scripts in this distribution
+that are of interest. The first is arpfetch and it knows how to
+retrieve the arp tables from a cisco using snmpwalk. This script takes
+two arguments, the hostname and the snmp community name. The other
+script is called bihourly and is suitable as a cron job. To configure
+it, you need to create a file called "list" that contains the names of
+the hosts to query and "cname" which contains the read/only snmp
+community name.
+
+If you get a lot of "bogon" syslog messages, the host system is
+probably running with the wrong subnet mask.
+
+Finally, arpwatch and arpsnmp use the resolver(3) library to get most
+of its information. This means you probably should either have a local
+named running or a correctly configured /etc/resolv.conf (or both).
+
+FILES
+-----
+CHANGES		- description of differences between releases
+FILES		- list of files exported as part of the distribution
+INSTALL		- this file
+Makefile.in	- compilation rules (input to the configure script)
+README		- description of distribution
+VERSION		- version of this release
+aclocal.m4	- autoconf macros
+addresses.h.in	- default email address defines
+arp2ethers	- script to convert arp.dat to ethers format
+arpfetch	- snmp grabber script (converts snmpwalk output)
+arpsnmp.8	- man page
+arpsnmp.c	- snmp reader program
+arpwatch.8	- man page
+arpwatch.c	- main program
+arpwatch.h	- config info
+bcopy.c		- missing routine
+bihourly	- arpsnmp wrapper script
+config.guess	- autoconf support
+config.sub	- autoconf support
+configure	- configure script (run this first)
+configure.in	- configure script source
+d.awk		- add "-ip" suffix to hosts with decnet addresses
+db.c		- database routines
+db.h		- global definitions
+dns.c		- domain name system routines
+dns.h		- global definitions
+e.awk		- add "-old" suffix to sorted ethers file
+ec.c		- ethernet vendor code routines
+ec.h		- global definitions
+ethercodes.dat	- ethernet vendor code database
+euppertolower.awk - massagevendor support
+file.c		- db file i/o routines
+file.h		- global definitions
+inet.c		- Internet routines
+install-sh	- BSD style install script
+intoa.c		- inet_ntoa() replacement
+lbl/gnuc.h	- gcc macros and defines
+lbl/os-*.h	- os dependent defines and prototypes
+machdep.c	- machine dependent routines
+machdep.h	- machine dependent definitions
+massagevendor	- massage oui.txt.html into ethercodes.dat format
+massagevendor-old - massage vendor.html into ethercodes.dat format
+missingcodes.txt - ethernet codes missing from oui.txt
+mkdep		- construct Makefile dependency list
+p.awk		- print the first ethernet address seen
+report.c	- email report generating routines
+report.h	- global definitions
+setsignal.c	- os independent signal routines
+setsignal.h	- os independent signal prototypes
+strerror.c	- missing routine
+util.c		- arpwatch and arpsnmp utility routines
+util.h		- global definitions
