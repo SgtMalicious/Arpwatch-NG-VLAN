@@ -65,6 +65,7 @@
  */
 struct einfo {
 	u_char e[6];		/* ether address */
+	u_int32_t v;		/* vlan tag */
 	char h[64];		/* simple hostname */
 	time_t t;		/* timestamp */
 };
@@ -83,12 +84,12 @@ static struct ainfo ainfo_table[HASHSIZE];
 
 static void alist_alloc(struct ainfo *);
 int cmpeinfo(const void *, const void *);
-static struct einfo *elist_alloc(u_int32_t, u_char *, time_t, char *);
+static struct einfo *elist_alloc(u_int32_t, u_int32_t, u_char *, time_t, char *);
 static struct ainfo *ainfo_find(u_int32_t);
 static void check_hname(struct ainfo *);
 struct ainfo *newainfo(void);
 
-int ent_add(u_int32_t a, u_char * e, time_t t, char *h)
+int ent_add(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
 {
 	struct ainfo *ap;
 	struct einfo *ep;
@@ -110,7 +111,7 @@ int ent_add(u_int32_t a, u_char * e, time_t t, char *h)
 		ep = ap->elist[0];
 		if(MEMCMP(e, ep->e, 6) == 0) {
 			if(t - ep->t > NEWACTIVITY_DELTA) {
-				report(ACTION_ACTIVITY, a, e, NULL, &t, &ep->t);
+				report(ACTION_ACTIVITY, v, a, e, NULL, &t, &ep->t);
 				check_hname(ap);
 			}
 			ep->t = t;
@@ -121,8 +122,8 @@ int ent_add(u_int32_t a, u_char * e, time_t t, char *h)
 	/* Check for a virgin ainfo record */
 	if(ap->ecount == 0) {
 		ap->ecount = 1;
-		ap->elist[0] = elist_alloc(a, e, t, h);
-		report(ACTION_NEW, a, e, NULL, &t, NULL);
+		ap->elist[0] = elist_alloc(v, a, e, t, h);
+		report(ACTION_NEW, v, a, e, NULL, &t, NULL);
 		return (1);
 	}
 
@@ -137,7 +138,7 @@ int ent_add(u_int32_t a, u_char * e, time_t t, char *h)
 			 */
 			t2 = ap->elist[0]->t;
 			e2 = ap->elist[0]->e;
-			report(ACTION_FLIPFLOP, a, e, e2, &t, &t2);
+			report(ACTION_FLIPFLOP, v, a, e, e2, &t, &t2);
 			ap->elist[1] = ap->elist[0];
 			ap->elist[0] = ep;
 			ep->t = t;
@@ -152,7 +153,7 @@ int ent_add(u_int32_t a, u_char * e, time_t t, char *h)
 			/* An old entry comes to life */
 			e2 = ap->elist[0]->e;
 			t2 = ap->elist[0]->t;
-			report(ACTION_REUSED, a, e, e2, &t, &t2);
+			report(ACTION_REUSED, v, a, e, e2, &t, &t2);
 			/* Shift entries down */
 			len = i * sizeof(ap->elist[0]);
 			BCOPY(&ap->elist[0], &ap->elist[1], len);
@@ -166,12 +167,12 @@ int ent_add(u_int32_t a, u_char * e, time_t t, char *h)
 	/* New ether address */
 	e2 = ap->elist[0]->e;
 	t2 = ap->elist[0]->t;
-	report(ACTION_CHANGED, a, e, e2, &t, &t2);
+	report(ACTION_CHANGED, v, a, e, e2, &t, &t2);
 	/* Make room at head of list */
 	alist_alloc(ap);
 	len = ap->ecount * sizeof(ap->elist[0]);
 	BCOPY(&ap->elist[0], &ap->elist[1], len);
-	ap->elist[0] = elist_alloc(a, e, t, h);
+	ap->elist[0] = elist_alloc(v, a, e, t, h);
 	++ap->ecount;
 	return (1);
 }
@@ -227,7 +228,7 @@ int ent_loop(ent_process fn)
 			for(j = 0; j < ap->ecount; ++j) {
 				ep = ap->elist[j];
 				/* and call the dumping function pointer */
-				(*fn)(ap->a, ep->e, ep->t, ep->h);
+				(*fn)(ep->v, ap->a, ep->e, ep->t, ep->h);
 				
 				++n;
 			}
@@ -257,7 +258,7 @@ static void alist_alloc(struct ainfo *ap)
 }
 
 /* Allocate and initialize a elist struct */
-static struct einfo *elist_alloc(u_int32_t a, u_char * e, time_t t, char *h)
+static struct einfo *elist_alloc(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
 {
 	struct einfo *ep;
 	u_int size;
@@ -287,6 +288,7 @@ static struct einfo *elist_alloc(u_int32_t a, u_char * e, time_t t, char *h)
 		strncpy(ep->h, h, sizeof(ep->h)-1);
 	}
 	ep->t = t;
+	ep->v = v;
 
 	return (ep);
 }

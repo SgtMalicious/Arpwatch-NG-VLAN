@@ -1,3 +1,8 @@
+NG+
+-Added support for 802.1Q frames.
+-Removed FDDI support.
+-Updated ethercodes.dat
+
 NG 1.7
 -Update configure system
 o config.{sub,guess} to support x86_64 better

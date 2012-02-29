@@ -1,0 +1,10 @@
+*.o
+Makefile
+addresses.h
+arp.dat*
+arpsnmp
+arpwatch
+config.log
+config.status
+gnuc.h
+version.c

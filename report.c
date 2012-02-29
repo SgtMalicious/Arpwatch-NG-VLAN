@@ -66,13 +66,13 @@ struct rtentry;
 
 #define PLURAL(n) ((n) == 1 || (n) == -1 ? "" : "s")
 
-static void report_orig(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
-static void report_stdout(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
-static void report_raw(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
+static void report_orig(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
+static void report_stdout(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
+static void report_raw(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
 
 
 /* the reporting function pointer -- initialize with default mode */
-void (*report_f)(int , u_int32_t, u_char *, u_char *, time_t *, time_t *)=report_orig;
+void (*report_f)(int , u_int32_t, u_int32_t, u_char *, u_char *, time_t *, time_t *)=report_orig;
 
 /* number of outstanding children */
 static int cdepth;
@@ -271,7 +271,7 @@ RETSIGTYPE reaper(int signo)
 
 
 /* main reporting entry point */
-void report(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+void report(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
 {
 	/* No report until we're initialized */
 	if(initializing) {
@@ -279,12 +279,12 @@ void report(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t
 	}
 
 	/* just call the setup'd report function */
-	report_f(action, a, e1, e2, t1p, t2p);
+	report_f(action, v, a, e1, e2, t1p, t2p);
 }
 
 
 /* the original form of reporting stations */
-static void report_orig(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+static void report_orig(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
 {
 	char *cp, *hn;
 	int fd, pid;
@@ -356,6 +356,7 @@ static void report_orig(int action, u_int32_t a, u_char *e1, u_char *e2, time_t 
 	fprintf(f, "Subject: %s (%s)\n", title, hn);
         putc('\n', f);
 	fprintf(f, fmt, "hostname", hn);
+	fprintf(f, "%20s: %d\n", "vlan", v);
 	fprintf(f, fmt, "ip address", intoa(a));
 	fprintf(f, fmt, "ethernet address", e2str(e1));
 	if((cp = ec_find(e1)) == NULL)
@@ -390,15 +391,16 @@ static void report_orig(int action, u_int32_t a, u_char *e1, u_char *e2, time_t 
 	}
 	/* XXX Need to freopen()? */
 	/* Always Deliver interactively (pause when child depth gets large) */
-	execl(sendmail, "sendmail", "-odi", mailto, NULL);
-	syslog(LOG_ERR, "execl: %s: %m", sendmail);
+	//execl(sendmail, "sendmail", "-odi", mailto, NULL);
+	//syslog(LOG_ERR, "execl: %s: %m", sendmail);
 	exit(1);
 }
 
 
 /* instead of sending mail just use stdout */
-static void report_stdout(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+static void report_stdout(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
 {
+
 	char *cp, *hn;
 	char cpu[64], os[64];
 	char *fmt = "%20s: %s\n";
@@ -413,6 +415,7 @@ static void report_stdout(int action, u_int32_t a, u_char *e1, u_char *e2, time_
 	}
         fprintf(f, "%s: %s\n\n", title, hn);
 	fprintf(f, fmt, "hostname", hn);
+	fprintf(f, "%20s: %d\n", "vlan", v);
 	fprintf(f, fmt, "ip address", intoa(a));
 	fprintf(f, fmt, "ethernet address", e2str(e1));
 	if((cp = ec_find(e1)) == NULL)
@@ -442,7 +445,7 @@ static void report_stdout(int action, u_int32_t a, u_char *e1, u_char *e2, time_
 /*
  output fields delimited by ','
  */
-static void report_raw(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+static void report_raw(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
 {
 	char *hn, *ip, *mac, *oldmac, *vendor;
 	time_t delta;
@@ -453,7 +456,7 @@ static void report_raw(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *
         if(!init) {
                 int i=0;
 		/* print nice format banner once */
-		fprintf(f, "# Format: timestamp,delta,action,hostname,ip,mac,oldmac,vendor\n");
+		fprintf(f, "# Format: timestamp,delta,action,hostname,vlan,ip,mac,oldmac,vendor\n");
 		fprintf(f, "# actions: ");
 
 		for(;i <= ACTION_MAX; i++) {
@@ -497,11 +500,12 @@ static void report_raw(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *
 	}
 
         /* Format: timestamp,delta,action,hostname,ip,mac,oldmac,vendor */
-	fprintf(f, "%d,%d,%d,%s,%s,%s,%s,%s\n",
+	fprintf(f, "%d,%d,%d,%s,%d,%s,%s,%s,%s\n",
                 *t1p,
                 delta,
                 action,
                 hn,
+		v,
                 ip,
                 mac,
                 oldmac,

@@ -73,7 +73,6 @@ struct rtentry;
 #include "arpwatch.h"
 #include "db.h"
 #include "ec.h"
-#include "fddi.h"
 #include "file.h"
 #include "machdep.h"
 #include "setsignal.h"
@@ -120,6 +119,13 @@ struct nets {
 	u_int32_t netmask;
 };
 
+struct tagged_header {
+	u_char ether_dhost[6];
+	u_char ether_shost[6];
+	u_char ether_vlan[4];
+	u_short ether_type;
+};
+
 static struct nets *nets;
 static int nets_ind;
 static int nets_size;
@@ -130,9 +136,7 @@ extern char *optarg;
 
 /* Forwards */
 static void process_ether(u_char *, const struct pcap_pkthdr *, const u_char *);
-static void process_fddi(u_char *, const struct pcap_pkthdr *, const u_char *);
-static int sanity_ether(struct ether_header *, struct ether_arp *, int, time_t *);
-static int sanity_fddi(struct fddi_header *, struct ether_arp *, int, time_t *);
+static int sanity_ether(struct tagged_header *, struct ether_arp *, int, time_t *);
 static int isbogon(u_int32_t);
 static int addnet(const char *);
 
@@ -155,7 +159,7 @@ int main(int argc, char **argv)
 	
 	char errbuf[PCAP_ERRBUF_SIZE];
 	/* this is the default filter: only arp or rarp traffic */
-	char pcap_filter[512]={"(arp or rarp)"};
+	char pcap_filter[512]={"vlan and (arp or rarp)"};
 	
 	/* default report mode is 0 == old style */
 	int report_mode=0;
@@ -281,7 +285,7 @@ int main(int argc, char **argv)
                         netmask=0;
 		}
 
-		snaplen = max(sizeof(struct ether_header), sizeof(struct fddi_header)) + sizeof(struct ether_arp);
+		snaplen = sizeof(struct tagged_header) + sizeof(struct ether_arp);
 		timeout = 1000;
 
 		pd = pcap_open_live(interface, snaplen, !nopromisc, timeout, errbuf);
@@ -305,10 +309,10 @@ int main(int argc, char **argv)
 		setuid(getuid());
 	}
 
-	/* Must be ethernet or fddi */
+	/* Must be ethernet */
 	linktype = pcap_datalink(pd);
-	if(linktype != DLT_EN10MB && linktype != DLT_FDDI) {
-		fprintf(stderr, "%s: Link layer type %d not ethernet or fddi", prog, linktype);
+	if(linktype != DLT_EN10MB) {
+		fprintf(stderr, "%s: Link layer type %d not ethernet", prog, linktype);
 		exit(1);
 	}
 
@@ -381,10 +385,6 @@ int main(int argc, char **argv)
 		status = pcap_loop(pd, 0, process_ether, NULL);
 		break;
 
-	case DLT_FDDI:
-		status = pcap_loop(pd, 0, process_fddi, NULL);
-		break;
-
 	default:
 		fprintf(stderr, "%s: bad linktype %d (can't happen)\n", prog, linktype);
                 syslog(LOG_ERR, "bad linktype %d (can't happen)", linktype);
@@ -407,13 +407,14 @@ int main(int argc, char **argv)
 /* Process an ethernet arp/rarp packet */
 static void process_ether(u_char *u, const struct pcap_pkthdr *h, const u_char *p)
 {
-	struct ether_header *eh;
+	struct tagged_header *eh;
 	struct ether_arp *ea;
 	u_char *sea, *sha;
 	time_t t;
 	u_int32_t sia;
+	u_int32_t vlan;
 
-	eh = (struct ether_header *)p;
+	eh = (struct tagged_header *)p;
 	ea = (struct ether_arp *)(eh + 1);
 
         /* extract time of observation */
@@ -421,6 +422,10 @@ static void process_ether(u_char *u, const struct pcap_pkthdr *h, const u_char *
 
 	if(!sanity_ether(eh, ea, h->caplen, &t))
 		return;
+
+	/* VLAN tag */
+	BCOPY(eh->ether_vlan, &vlan, 4);
+	vlan = (htonl(vlan)) & 0x00000FFF;
 
 	/* Source hardware ethernet address */
 	sea = (u_char *) ESRC(eh);
@@ -434,40 +439,34 @@ static void process_ether(u_char *u, const struct pcap_pkthdr *h, const u_char *
 
 	/* Watch for bogons */
 	if(isbogon(sia)) {
-                report(ACTION_BOGON, sia, sea, sha, &t, NULL);
+                report(ACTION_BOGON, vlan, sia, sea, sha, &t, NULL);
 		return;
 	}
 
 	/* Watch for ethernet broadcast */
         if(MEMCMP(sea, zero, 6) == 0 || MEMCMP(sea, allones, 6) == 0
            || MEMCMP(sha, zero, 6) == 0 || MEMCMP(sha, allones, 6) == 0) {
-                report(ACTION_ETHER_BROADCAST, sia, sea, sha, &t, NULL);
+                report(ACTION_ETHER_BROADCAST, vlan, sia, sea, sha, &t, NULL);
 		return;
 	}
 
 	/* Double check ethernet addresses */
 	if(MEMCMP(sea, sha, 6) != 0) {
-                report(ACTION_ETHER_MISMATCH, sia, sea, sha, &t, NULL);
+                report(ACTION_ETHER_MISMATCH, vlan, sia, sea, sha, &t, NULL);
 		return;
 	}
 
 	/* when all checks have been passed add(check) the entry into the arp db */
 	can_checkpoint = 0;
-	if(!ent_add(sia, sea, t, NULL))
-		syslog(LOG_ERR, "ent_add(%s, %s, %ld) failed", intoa(sia), e2str(sea), t);
+	if(!ent_add(vlan, sia, sea, t, NULL))
+		syslog(LOG_ERR, "ent_add(%d, %s, %s, %ld) failed", vlan, intoa(sia), e2str(sea), t);
 	can_checkpoint = 1;
 }
 
 /* Perform sanity checks on an ethernet arp/rarp packet, return true if ok */
-static int sanity_ether(struct ether_header *eh, struct ether_arp *ea, int len, time_t *t)
+static int sanity_ether(struct tagged_header *eh, struct ether_arp *ea, int len, time_t *t)
 {
-	/* XXX use bsd style ether_header to avoid messy ifdef's */
-	struct bsd_ether_header {
-		u_char ether_dhost[6];
-		u_char ether_shost[6];
-		u_short ether_type;
-	};
-	u_char *shost = ((struct bsd_ether_header *)eh)->ether_shost;
+	u_char *shost = ((struct tagged_header *)eh)->ether_shost;
 
 	eh->ether_type = ntohs(eh->ether_type);
 	ea->arp_hrd = ntohs(ea->arp_hrd);
@@ -477,35 +476,38 @@ static int sanity_ether(struct ether_header *eh, struct ether_arp *ea, int len, 
         /* these are cheap, but maybe don't do them twice */
 	u_char *sea, *sha;
 	u_int32_t sia;
+	u_int32_t vlan;
 	/* Source addresses */
 	sea = (u_char *) ESRC(eh);
 	sha = (u_char *) SHA(ea);
 	/* Source ip address */
 	BCOPY(SPA(ea), &sia, 4);
+	BCOPY(eh->ether_vlan, &vlan, 4);
+	vlan = (htonl(vlan)) & 0x00000FFF;
 
 	if(len < sizeof(*eh) + sizeof(*ea)) {
 		//syslog(LOG_ERR, "short (want %d)\n", sizeof(*eh) + sizeof(*ea));
-                report(ACTION_ETHER_TOOSHORT, sia, sea, sha, t, NULL);
+                report(ACTION_ETHER_TOOSHORT, vlan, sia, sea, sha, t, NULL);
 		return (0);
 	}
 
 	/* XXX sysv r4 seems to use hardware format 6 */
 	if(ea->arp_hrd != ARPHRD_ETHER && ea->arp_hrd != 6) {
 		//syslog(LOG_ERR, "%s sent bad hardware format 0x%x\n", e2str(shost), ea->arp_hrd);
-                report(ACTION_ETHER_BADFORMAT, sia, sea, sha, t, NULL);
+                report(ACTION_ETHER_BADFORMAT, vlan, sia, sea, sha, t, NULL);
 		return (0);
 	}
 
 	/* XXX hds X terminals sometimes send trailer arp replies */
 	if(ea->arp_pro != ETHERTYPE_IP && ea->arp_pro != ETHERTYPE_TRAIL) {
 		//syslog(LOG_ERR, "%s sent packet not ETHERTYPE_IP (0x%x)\n", e2str(shost), ea->arp_pro);
-		report(ACTION_ETHER_WRONGTYPE_IP, sia, sea, sha, t, NULL);
+		report(ACTION_ETHER_WRONGTYPE_IP, vlan, sia, sea, sha, t, NULL);
 		return (0);
 	}
 
 	if(ea->arp_hln != 6 || ea->arp_pln != 4) {
 		//syslog(LOG_ERR, "%s sent bad addr len (hard %d, prot %d)\n", e2str(shost), ea->arp_hln, ea->arp_pln);
-		report(ACTION_ETHER_BADLENGTH, sia, sea, sha, t, NULL);
+		report(ACTION_ETHER_BADLENGTH, vlan, sia, sea, sha, t, NULL);
 		return (0);
 	}
 
@@ -516,7 +518,7 @@ static int sanity_ether(struct ether_header *eh, struct ether_arp *ea, int len, 
 	if(eh->ether_type == ETHERTYPE_ARP) {
 		if(ea->arp_op != ARPOP_REQUEST && ea->arp_op != ARPOP_REPLY) {
 			//syslog(LOG_ERR, "%s sent wrong arp op %d\n", e2str(shost), ea->arp_op);
-			report(ACTION_ETHER_WRONGOP, sia, sea, sha, t, NULL);
+			report(ACTION_ETHER_WRONGOP, vlan, sia, sea, sha, t, NULL);
 			return (0);
 		}
 	} else if(eh->ether_type == ETHERTYPE_REVARP) {
@@ -524,174 +526,17 @@ static int sanity_ether(struct ether_header *eh, struct ether_arp *ea, int len, 
 			/* no useful information here */
 			return (0);
 		} else if(ea->arp_op != REVARP_REPLY) {
-			report(ACTION_ETHER_WRONGRARP, sia, sea, sha, t, NULL);
+			report(ACTION_ETHER_WRONGRARP, vlan, sia, sea, sha, t, NULL);
 			if(debug)
 				syslog(LOG_ERR, "%s sent wrong revarp op %d\n", e2str(shost), ea->arp_op);
 			return (0);
 		}
 	} else {
 		//syslog(LOG_ERR, "%s sent bad type 0x%x\n", e2str(shost), eh->ether_type);
-		report(ACTION_ETHER_WRONGTYPE, sia, sea, sha, t, NULL);
+		report(ACTION_ETHER_WRONGTYPE, vlan, sia, sea, sha, t, NULL);
 		return (0);
 	}
 
-	return (1);
-}
-
-static void bit_reverse(u_char *p, unsigned len)
-{
-	unsigned i;
-	u_char b;
-
-	for(i = len; i; i--, p++) {
-		b = (*p & 0x01 ? 0x80 : 0)
-		    | (*p & 0x02 ? 0x40 : 0)
-		    | (*p & 0x04 ? 0x20 : 0)
-		    | (*p & 0x08 ? 0x10 : 0)
-		    | (*p & 0x10 ? 0x08 : 0)
-		    | (*p & 0x20 ? 0x04 : 0)
-		    | (*p & 0x40 ? 0x02 : 0)
-		    | (*p & 0x80 ? 0x01 : 0);
-		*p = b;
-	}
-}
-
-static void process_fddi(u_char *u, const struct pcap_pkthdr *h, const u_char *p)
-{
-	struct fddi_header *fh;
-	struct ether_arp *ea;
-	u_char *sea, *sha;
-	time_t t;
-	u_int32_t sia;
-
-	fh = (struct fddi_header *)p;
-	ea = (struct ether_arp *)(fh + 1);
-
-	if(!swapped) {
-		bit_reverse(fh->src, 6);
-		bit_reverse(fh->dst, 6);
-	}
-        /* extract time of observation */
-	t = h->ts.tv_sec;
-
-	if(!sanity_fddi(fh, ea, h->caplen, &t))
-		return;
-
-	/* Source MAC hardware ethernet address */
-	sea = (u_char *) fh->src;
-
-	/* Source ARP ethernet address */
-	sha = (u_char *) SHA(ea);
-
-	/* Source ARP ip address */
-	BCOPY(SPA(ea), &sia, 4);
-
-	/* Watch for bogons */
-	if(isbogon(sia)) {
-                report(ACTION_BOGON, sia, sea, sha, &t, NULL);
-		return;
-	}
-
-	/* Watch for ethernet broadcast */
-	if(MEMCMP(sea, zero, 6) == 0 || MEMCMP(sea, allones, 6) == 0 || MEMCMP(sha, zero, 6) == 0 || MEMCMP(sha, allones, 6) == 0) {
-                report(ACTION_ETHER_BROADCAST, sia, sea, sha, &t, NULL);
-		return;
-	}
-
-	/* Double check ethernet addresses */
-	if(MEMCMP(sea, sha, 6) != 0) {
-                report(ACTION_ETHER_MISMATCH, sia, sea, sha, &t, NULL);
-		return;
-	}
-
-	/* Got a live one */
-	can_checkpoint = 0;
-	if(!ent_add(sia, sea, t, NULL))
-		syslog(LOG_ERR, "ent_add(%s, %s, %ld) failed", intoa(sia), e2str(sea), t);
-	can_checkpoint = 1;
-}
-
-/* Perform sanity checks on arp/rarp packet, return true if ok */
-static int sanity_fddi(struct fddi_header *fh, struct ether_arp *ea, int len, time_t *t)
-{
-	u_char *shost = fh->src;
-	u_short type, hrd, pro, op;
-
-        /* these are cheap, but maybe don't do them twice */
-	u_char *sea, *sha;
-	u_int32_t sia;
-	/* Source MAC hardware ethernet address */
-	sea = (u_char *) fh->src;
-	/* Source ARP ethernet address */
-	sha = (u_char *) SHA(ea);
-	/* Source ARP ip address */
-	BCOPY(SPA(ea), &sia, 4);
-
-	/* This rather clunky copy stuff is needed because the fddi header
-	 * has an odd (i.e. not even) length, causing memory alignment
-	 * errors when attempts are made to access the arp header fields
-	 * as shorts */
-	BCOPY(fh->snap.snap_type, &type, sizeof(u_short));
-	BCOPY(&(ea->arp_hrd), &hrd, sizeof(hrd));
-	BCOPY(&(ea->arp_pro), &pro, sizeof(pro));
-	BCOPY(&(ea->arp_op), &op, sizeof(op));
-	type = ntohs(type);
-	hrd = ntohs(hrd);
-	pro = ntohs(pro);
-	op = ntohs(op);
-
-	if(len < sizeof(*fh) + sizeof(*ea)) {
-		//syslog(LOG_ERR, "short (want %d)\n", sizeof(*fh) + sizeof(*ea));
-		report(ACTION_ETHER_TOOSHORT, sia, sea, sha, t, NULL);
-		return (0);
-	}
-
-	/* XXX sysv r4 seems to use hardware format 6 */
-	if(hrd != ARPHRD_ETHER && hrd != 6) {
-		//syslog(LOG_ERR, "%s sent bad hardware format 0x%x\n", e2str(shost), hrd);
-		report(ACTION_ETHER_BADFORMAT, sia, sea, sha, t, NULL);
-		return (0);
-	}
-
-
-	/* XXX hds X terminals sometimes send trailer arp replies */
-	if(pro != ETHERTYPE_IP && pro != ETHERTYPE_TRAIL && pro != ETHERTYPE_APOLLO) {
-		//syslog(LOG_ERR, "%s sent packet not ETHERTYPE_IP (0x%x)\n", e2str(shost), pro);
-		report(ACTION_ETHER_WRONGTYPE_IP, sia, sea, sha, t, NULL);
-		return (0);
-	}
-
-	if(ea->arp_hln != 6 || ea->arp_pln != 4) {
-		//syslog(LOG_ERR, "%s sent bad addr len (hard %d, prot %d)\n", e2str(shost), ea->arp_hln, ea->arp_pln);
-		report(ACTION_ETHER_BADLENGTH, sia, sea, sha, t, NULL);
-		return (0);
-	}
-
-	/*
-	 * We're only interested in arp requests, arp replies
-	 * and reverse arp replies
-	 */
-	if(type == ETHERTYPE_ARP) {
-		if(op != ARPOP_REQUEST && op != ARPOP_REPLY) {
-			//syslog(LOG_ERR, "%s sent wrong arp op %d\n", e2str(shost), op);
-			report(ACTION_ETHER_WRONGOP, sia, sea, sha, t, NULL);
-			return (0);
-		}
-	} else if(type == ETHERTYPE_REVARP) {
-		if(op == REVARP_REQUEST) {
-			/* no useful information here */
-			return (0);
-		} else if(op != REVARP_REPLY) {
-			report(ACTION_ETHER_WRONGRARP, sia, sea, sha, t, NULL);
-			if(debug)
-				syslog(LOG_ERR, "%s sent wrong revarp op %d\n", e2str(shost), op);
-			return (0);
-		}
-	} else {
-		//syslog(LOG_ERR, "%s sent bad type 0x%x\n", e2str(shost), type);
-		report(ACTION_ETHER_WRONGTYPE, sia, sea, sha, t, NULL);
-		return (0);
-	}
 	return (1);
 }
 

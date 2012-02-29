@@ -28,7 +28,7 @@ enum {
 
 /* struct describing a report function */
 struct report_mode {
-	void (*func)(int , u_int32_t, u_char *, u_char *, time_t *, time_t *);
+	void (*func)(int , u_int32_t, u_int32_t, u_char *, u_char *, time_t *, time_t *);
 	const char *name;
         unsigned int flags;
 };
@@ -36,7 +36,7 @@ struct report_mode {
 
 #define ACTION_MAX ACTION_ETHER_WRONGTYPE
 
-void report(int, u_int32_t, u_char *, u_char *, time_t *, time_t *);
+void report(int, u_int32_t, u_int32_t, u_char *, u_char *, time_t *, time_t *);
 int setup_reportmode(int mode);
 int get_reportmodes(const struct report_mode **out);
 

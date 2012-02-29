@@ -1,6 +1,6 @@
 void dosyslog(int, char *, u_int32_t, u_char *, u_char *);
 int dump(void);
-void dumpone(u_int32_t, u_char *, time_t, char *);
+void dumpone(u_int32_t, u_int32_t, u_char *, time_t, char *);
 int readdata(void);
 char *savestr(const char *);
 #ifndef HAVE_STRNDUP

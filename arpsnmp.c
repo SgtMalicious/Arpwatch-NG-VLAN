@@ -60,7 +60,7 @@
 /* Forwards */
 int main(int, char **);
 int readsnmp(char *);
-int snmp_add(u_int32_t, u_char *, time_t, char *);
+int snmp_add(u_int32_t, u_int32_t, u_char *, time_t, char *);
 __dead void usage(void) __attribute__ ((volatile));
 
 char *prog;
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 
 static time_t now;
 
-int snmp_add(u_int32_t a, u_char * e, time_t t, char *h)
+int snmp_add(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
 {
 	/* Watch for ethernet broadcast */
 	if(MEMCMP(e, zero, 6) == 0 || MEMCMP(e, allones, 6) == 0) {
@@ -159,7 +159,7 @@ int snmp_add(u_int32_t a, u_char * e, time_t t, char *h)
 	}
 
 	/* Use current time (although it would be nice to subtract idle time) */
-	return (ent_add(a, e, now, h));
+	return (ent_add(0, a, e, now, h));
 }
 
 /* Process an snmp file */

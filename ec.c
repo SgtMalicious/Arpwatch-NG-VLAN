@@ -72,7 +72,15 @@ static int ec_a2o(char *cp, u_int32_t * op)
 	char xbuf[128];
 	u_char e[6];
 
-	sprintf(xbuf, "%.32s:0:0:0", cp);
+	memset(&xbuf, 0, sizeof(xbuf));
+
+	strncpy(xbuf, &cp[0], 2);
+	strcat(xbuf, ":");
+	strncat(xbuf, &cp[2], 2);
+	strcat(xbuf, ":");
+	strncat(xbuf, &cp[4], 2);
+	strcat(xbuf, ":0:0:0");
+
 	if(!str2e(xbuf, e))
 		return (0);
 	*op = 0;

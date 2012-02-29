@@ -62,6 +62,7 @@ int file_loop(FILE * f, file_process fn, const char *name)
 	int n;
 	char *cp, *cp2, *h;
 	u_int32_t a;
+	u_int32_t v = 0;
 	time_t t;
 	struct hostent *hp;
 	char line[1024];
@@ -69,11 +70,14 @@ int file_loop(FILE * f, file_process fn, const char *name)
 
 	n = 0;
 	while(fgets(line, sizeof(line), f)) {
+
 		++n;
 		cp = line;
 		cp2 = cp + strlen(cp) - 1;
+
 		if(cp2 >= cp && *cp2 == '\n')
-			*cp2++ = '\0';
+			*cp2 = '\0';	//convert newline to eos
+
 		if(*cp == '#')
 			continue;
 		if((cp2 = strchr(cp, '\t')) == NULL) {
@@ -83,17 +87,28 @@ int file_loop(FILE * f, file_process fn, const char *name)
 		}
 
 		/* Ethernet address comes first */
-		*cp2++ = '\0';
+		*cp2 = '\0';	//convert tab to eos
+		++cp2;		//move to start of mac address
 		if(!str2e(cp, e)) {
 			syslog(LOG_ERR, "file_loop: %s:%d bad ether addr \"%s\"", name, n, cp);
 			fprintf(stderr, "file_loop: %s:%d bad ether addr \"%s\"\n", name, n, cp);
 			continue;
 		}
 
+		/* vlan is next */
+		cp = cp2;
+		if((cp2 = strchr(cp, '\t')) != NULL) {
+			*cp2 = '\0';	//convert tab to eos
+			++cp2;		//move to start of ip address
+		}
+		v = strtoul(cp,NULL,10);
+
 		/* ip address is next */
 		cp = cp2;
-		if((cp2 = strchr(cp, '\t')) != NULL)
-			*cp2++ = '\0';
+		if((cp2 = strchr(cp, '\t')) != NULL) {
+			*cp2 = '\0';	//convert tab to eos
+			++cp2;		//move to start of timestamp or eol
+		}
 		if(!isdigit((int)*cp) || (int32_t) (a = inet_addr(cp)) == -1) {
 			if((hp = gethostbyname(cp)) == NULL) {
 				syslog(LOG_ERR, "file_loop: %s:%d bad hostname \"%s\"", name, n, cp);
@@ -119,7 +134,7 @@ int file_loop(FILE * f, file_process fn, const char *name)
 			}
 		}
 
-		if(!(*fn) (a, e, t, h))
+		if(!(*fn) (v, a, e, t, h))
 			return (0);
 	}
 
