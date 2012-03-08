@@ -119,12 +119,14 @@ struct nets {
 	u_int32_t netmask;
 };
 
+#ifdef USE_8021Q
 struct tagged_header {
 	u_char ether_dhost[6];
 	u_char ether_shost[6];
 	u_char ether_vlan[4];
 	u_short ether_type;
 };
+#endif
 
 static struct nets *nets;
 static int nets_ind;
@@ -136,7 +138,11 @@ extern char *optarg;
 
 /* Forwards */
 static void process_ether(u_char *, const struct pcap_pkthdr *, const u_char *);
+#ifdef USE_8021Q
 static int sanity_ether(struct tagged_header *, struct ether_arp *, int, time_t *);
+#else
+static int sanity_ether(struct ether_header *, struct ether_arp *, int, time_t *);
+#endif
 static int isbogon(u_int32_t);
 static int addnet(const char *);
 
@@ -159,7 +165,11 @@ int main(int argc, char **argv)
 	
 	char errbuf[PCAP_ERRBUF_SIZE];
 	/* this is the default filter: only arp or rarp traffic */
+#ifdef USE_8021Q
 	char pcap_filter[512]={"vlan and (arp or rarp)"};
+#else
+	char pcap_filter[512]={"(arp or rarp)"};
+#endif
 	
 	/* default report mode is 0 == old style */
 	int report_mode=0;
@@ -285,7 +295,11 @@ int main(int argc, char **argv)
                         netmask=0;
 		}
 
+#ifdef USE_8021Q
 		snaplen = sizeof(struct tagged_header) + sizeof(struct ether_arp);
+#else
+		snaplen = sizeof(struct ether_header) + sizeof(struct ether_arp);
+#endif
 		timeout = 1000;
 
 		pd = pcap_open_live(interface, snaplen, !nopromisc, timeout, errbuf);
@@ -407,14 +421,20 @@ int main(int argc, char **argv)
 /* Process an ethernet arp/rarp packet */
 static void process_ether(u_char *u, const struct pcap_pkthdr *h, const u_char *p)
 {
-	struct tagged_header *eh;
 	struct ether_arp *ea;
 	u_char *sea, *sha;
 	time_t t;
 	u_int32_t sia;
+#ifdef USE_8021Q
+	struct tagged_header *eh;
 	u_int32_t vlan;
 
 	eh = (struct tagged_header *)p;
+#else
+	struct ether_header *eh;
+
+	eh = (struct ether_header *)p;
+#endif
 	ea = (struct ether_arp *)(eh + 1);
 
         /* extract time of observation */
@@ -423,9 +443,11 @@ static void process_ether(u_char *u, const struct pcap_pkthdr *h, const u_char *
 	if(!sanity_ether(eh, ea, h->caplen, &t))
 		return;
 
+#ifdef USE_8021Q
 	/* VLAN tag */
 	BCOPY(eh->ether_vlan, &vlan, 4);
 	vlan = (htonl(vlan)) & 0x00000FFF;
+#endif
 
 	/* Source hardware ethernet address */
 	sea = (u_char *) ESRC(eh);
@@ -439,34 +461,57 @@ static void process_ether(u_char *u, const struct pcap_pkthdr *h, const u_char *
 
 	/* Watch for bogons */
 	if(isbogon(sia)) {
+#ifdef USE_8021Q
                 report(ACTION_BOGON, vlan, sia, sea, sha, &t, NULL);
+#else
+                report(ACTION_BOGON, sia, sea, sha, &t, NULL);
+#endif
 		return;
 	}
 
 	/* Watch for ethernet broadcast */
         if(MEMCMP(sea, zero, 6) == 0 || MEMCMP(sea, allones, 6) == 0
            || MEMCMP(sha, zero, 6) == 0 || MEMCMP(sha, allones, 6) == 0) {
+#ifdef USE_8021Q
                 report(ACTION_ETHER_BROADCAST, vlan, sia, sea, sha, &t, NULL);
+#else
+                report(ACTION_ETHER_BROADCAST, sia, sea, sha, &t, NULL);
+#endif
 		return;
 	}
 
 	/* Double check ethernet addresses */
 	if(MEMCMP(sea, sha, 6) != 0) {
+#ifdef USE_8021Q
                 report(ACTION_ETHER_MISMATCH, vlan, sia, sea, sha, &t, NULL);
+#else
+                report(ACTION_ETHER_MISMATCH, sia, sea, sha, &t, NULL);
+#endif
 		return;
 	}
 
 	/* when all checks have been passed add(check) the entry into the arp db */
 	can_checkpoint = 0;
+#ifdef USE_8021Q
 	if(!ent_add(vlan, sia, sea, t, NULL))
 		syslog(LOG_ERR, "ent_add(%d, %s, %s, %ld) failed", vlan, intoa(sia), e2str(sea), t);
+#else
+	if(!ent_add(sia, sea, t, NULL))
+		syslog(LOG_ERR, "ent_add(%s, %s, %ld) failed", intoa(sia), e2str(sea), t);
+#endif
 	can_checkpoint = 1;
 }
 
 /* Perform sanity checks on an ethernet arp/rarp packet, return true if ok */
+#ifdef USE_8021Q
 static int sanity_ether(struct tagged_header *eh, struct ether_arp *ea, int len, time_t *t)
 {
 	u_char *shost = ((struct tagged_header *)eh)->ether_shost;
+#else
+static int sanity_ether(struct ether_header *eh, struct ether_arp *ea, int len, time_t *t)
+{
+	u_char *shost = ((struct ether_header *)eh)->ether_shost;
+#endif
 
 	eh->ether_type = ntohs(eh->ether_type);
 	ea->arp_hrd = ntohs(ea->arp_hrd);
@@ -476,38 +521,58 @@ static int sanity_ether(struct tagged_header *eh, struct ether_arp *ea, int len,
         /* these are cheap, but maybe don't do them twice */
 	u_char *sea, *sha;
 	u_int32_t sia;
+#ifdef USE_8021Q
 	u_int32_t vlan;
+#endif
 	/* Source addresses */
 	sea = (u_char *) ESRC(eh);
 	sha = (u_char *) SHA(ea);
 	/* Source ip address */
 	BCOPY(SPA(ea), &sia, 4);
+#ifdef USE_8021Q
 	BCOPY(eh->ether_vlan, &vlan, 4);
 	vlan = (htonl(vlan)) & 0x00000FFF;
+#endif
 
 	if(len < sizeof(*eh) + sizeof(*ea)) {
 		//syslog(LOG_ERR, "short (want %d)\n", sizeof(*eh) + sizeof(*ea));
+#ifdef USE_8021Q
                 report(ACTION_ETHER_TOOSHORT, vlan, sia, sea, sha, t, NULL);
+#else
+                report(ACTION_ETHER_TOOSHORT, sia, sea, sha, t, NULL);
+#endif
 		return (0);
 	}
 
 	/* XXX sysv r4 seems to use hardware format 6 */
 	if(ea->arp_hrd != ARPHRD_ETHER && ea->arp_hrd != 6) {
 		//syslog(LOG_ERR, "%s sent bad hardware format 0x%x\n", e2str(shost), ea->arp_hrd);
+#ifdef USE_8021Q
                 report(ACTION_ETHER_BADFORMAT, vlan, sia, sea, sha, t, NULL);
+#else
+                report(ACTION_ETHER_BADFORMAT, sia, sea, sha, t, NULL);
+#endif
 		return (0);
 	}
 
 	/* XXX hds X terminals sometimes send trailer arp replies */
 	if(ea->arp_pro != ETHERTYPE_IP && ea->arp_pro != ETHERTYPE_TRAIL) {
 		//syslog(LOG_ERR, "%s sent packet not ETHERTYPE_IP (0x%x)\n", e2str(shost), ea->arp_pro);
+#ifdef USE_8021Q
 		report(ACTION_ETHER_WRONGTYPE_IP, vlan, sia, sea, sha, t, NULL);
+#else
+		report(ACTION_ETHER_WRONGTYPE_IP, sia, sea, sha, t, NULL);
+#endif
 		return (0);
 	}
 
 	if(ea->arp_hln != 6 || ea->arp_pln != 4) {
 		//syslog(LOG_ERR, "%s sent bad addr len (hard %d, prot %d)\n", e2str(shost), ea->arp_hln, ea->arp_pln);
+#ifdef USE_8021Q
 		report(ACTION_ETHER_BADLENGTH, vlan, sia, sea, sha, t, NULL);
+#else
+		report(ACTION_ETHER_BADLENGTH, sia, sea, sha, t, NULL);
+#endif
 		return (0);
 	}
 
@@ -518,7 +583,11 @@ static int sanity_ether(struct tagged_header *eh, struct ether_arp *ea, int len,
 	if(eh->ether_type == ETHERTYPE_ARP) {
 		if(ea->arp_op != ARPOP_REQUEST && ea->arp_op != ARPOP_REPLY) {
 			//syslog(LOG_ERR, "%s sent wrong arp op %d\n", e2str(shost), ea->arp_op);
+#ifdef USE_8021Q
 			report(ACTION_ETHER_WRONGOP, vlan, sia, sea, sha, t, NULL);
+#else
+			report(ACTION_ETHER_WRONGOP, sia, sea, sha, t, NULL);
+#endif
 			return (0);
 		}
 	} else if(eh->ether_type == ETHERTYPE_REVARP) {
@@ -526,14 +595,22 @@ static int sanity_ether(struct tagged_header *eh, struct ether_arp *ea, int len,
 			/* no useful information here */
 			return (0);
 		} else if(ea->arp_op != REVARP_REPLY) {
+#ifdef USE_8021Q
 			report(ACTION_ETHER_WRONGRARP, vlan, sia, sea, sha, t, NULL);
+#else
+			report(ACTION_ETHER_WRONGRARP, sia, sea, sha, t, NULL);
+#endif
 			if(debug)
 				syslog(LOG_ERR, "%s sent wrong revarp op %d\n", e2str(shost), ea->arp_op);
 			return (0);
 		}
 	} else {
 		//syslog(LOG_ERR, "%s sent bad type 0x%x\n", e2str(shost), eh->ether_type);
+#ifdef USE_8021Q
 		report(ACTION_ETHER_WRONGTYPE, vlan, sia, sea, sha, t, NULL);
+#else
+		report(ACTION_ETHER_WRONGTYPE, sia, sea, sha, t, NULL);
+#endif
 		return (0);
 	}
 

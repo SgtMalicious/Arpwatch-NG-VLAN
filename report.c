@@ -66,6 +66,7 @@ struct rtentry;
 
 #define PLURAL(n) ((n) == 1 || (n) == -1 ? "" : "s")
 
+#ifdef USE_8021Q
 static void report_orig(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
 static void report_stdout(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
 static void report_raw(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
@@ -73,6 +74,15 @@ static void report_raw(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char 
 
 /* the reporting function pointer -- initialize with default mode */
 void (*report_f)(int , u_int32_t, u_int32_t, u_char *, u_char *, time_t *, time_t *)=report_orig;
+#else
+static void report_orig(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
+static void report_stdout(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
+static void report_raw(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p);
+
+
+/* the reporting function pointer -- initialize with default mode */
+void (*report_f)(int , u_int32_t, u_char *, u_char *, time_t *, time_t *)=report_orig;
+#endif
 
 /* number of outstanding children */
 static int cdepth;
@@ -271,7 +281,11 @@ RETSIGTYPE reaper(int signo)
 
 
 /* main reporting entry point */
+#ifdef USE_8021Q
 void report(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+#else
+void report(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+#endif
 {
 	/* No report until we're initialized */
 	if(initializing) {
@@ -279,12 +293,20 @@ void report(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t
 	}
 
 	/* just call the setup'd report function */
+#ifdef USE_8021Q
 	report_f(action, v, a, e1, e2, t1p, t2p);
+#else
+	report_f(action, a, e1, e2, t1p, t2p);
+#endif
 }
 
 
 /* the original form of reporting stations */
+#ifdef USE_8021Q
 static void report_orig(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+#else
+static void report_orig(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+#endif
 {
 	char *cp, *hn;
 	int fd, pid;
@@ -356,7 +378,9 @@ static void report_orig(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char
 	fprintf(f, "Subject: %s (%s)\n", title, hn);
         putc('\n', f);
 	fprintf(f, fmt, "hostname", hn);
+#ifdef USE_8021Q
 	fprintf(f, "%20s: %d\n", "vlan", v);
+#endif
 	fprintf(f, fmt, "ip address", intoa(a));
 	fprintf(f, fmt, "ethernet address", e2str(e1));
 	if((cp = ec_find(e1)) == NULL)
@@ -398,7 +422,11 @@ static void report_orig(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char
 
 
 /* instead of sending mail just use stdout */
+#ifdef USE_8021Q
 static void report_stdout(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+#else
+static void report_stdout(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+#endif
 {
 
 	char *cp, *hn;
@@ -415,7 +443,9 @@ static void report_stdout(int action, u_int32_t v, u_int32_t a, u_char *e1, u_ch
 	}
         fprintf(f, "%s: %s\n\n", title, hn);
 	fprintf(f, fmt, "hostname", hn);
+#ifdef USE_8021Q
 	fprintf(f, "%20s: %d\n", "vlan", v);
+#endif
 	fprintf(f, fmt, "ip address", intoa(a));
 	fprintf(f, fmt, "ethernet address", e2str(e1));
 	if((cp = ec_find(e1)) == NULL)
@@ -445,7 +475,11 @@ static void report_stdout(int action, u_int32_t v, u_int32_t a, u_char *e1, u_ch
 /*
  output fields delimited by ','
  */
+#ifdef USE_8021Q
 static void report_raw(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+#else
+static void report_raw(int action, u_int32_t a, u_char *e1, u_char *e2, time_t *t1p, time_t *t2p)
+#endif
 {
 	char *hn, *ip, *mac, *oldmac, *vendor;
 	time_t delta;
@@ -456,7 +490,11 @@ static void report_raw(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char 
         if(!init) {
                 int i=0;
 		/* print nice format banner once */
+#ifdef USE_8021Q
 		fprintf(f, "# Format: timestamp,delta,action,hostname,vlan,ip,mac,oldmac,vendor\n");
+#else
+		fprintf(f, "# Format: timestamp,delta,action,hostname,ip,mac,oldmac,vendor\n");
+#endif
 		fprintf(f, "# actions: ");
 
 		for(;i <= ACTION_MAX; i++) {
@@ -499,13 +537,20 @@ static void report_raw(int action, u_int32_t v, u_int32_t a, u_char *e1, u_char 
                 delta=0;
 	}
 
-        /* Format: timestamp,delta,action,hostname,ip,mac,oldmac,vendor */
+#ifdef USE_8021Q
+        /* Format: timestamp,delta,action,hostname,vlan,ip,mac,oldmac,vendor */
 	fprintf(f, "%d,%d,%d,%s,%d,%s,%s,%s,%s\n",
+#else
+        /* Format: timestamp,delta,action,hostname,ip,mac,oldmac,vendor */
+	fprintf(f, "%d,%d,%d,%s,%s,%s,%s,%s\n",
+#endif
                 *t1p,
                 delta,
                 action,
                 hn,
-		v,
+#ifdef USE_8021Q
+                v,
+#endif
                 ip,
                 mac,
                 oldmac,

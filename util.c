@@ -92,9 +92,15 @@ void dosyslog(int p, char *s, u_int32_t a, u_char * ea, u_char * ha)
 }
 
 
+#ifdef USE_8021Q
 void dumpone(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
 {
 	fprintf(dumpf, "%s\t%ld\t%s", e2str(e), (unsigned long int)v, intoa(a));
+#else
+void dumpone(u_int32_t a, u_char * e, time_t t, char *h)
+{
+	fprintf(dumpf, "%s\t%s", e2str(e), intoa(a));
+#endif
 	if(t != 0 || h != NULL)
 		fprintf(dumpf, "\t%u", (u_int32_t) t);
 	if(h != NULL && *h != '\0')

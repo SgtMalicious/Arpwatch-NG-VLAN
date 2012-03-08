@@ -65,7 +65,9 @@
  */
 struct einfo {
 	u_char e[6];		/* ether address */
+#ifdef USE_8021Q
 	u_int32_t v;		/* vlan tag */
+#endif
 	char h[64];		/* simple hostname */
 	time_t t;		/* timestamp */
 };
@@ -84,12 +86,20 @@ static struct ainfo ainfo_table[HASHSIZE];
 
 static void alist_alloc(struct ainfo *);
 int cmpeinfo(const void *, const void *);
+#ifdef USE_8021Q
 static struct einfo *elist_alloc(u_int32_t, u_int32_t, u_char *, time_t, char *);
+#else
+static struct einfo *elist_alloc(u_int32_t, u_char *, time_t, char *);
+#endif
 static struct ainfo *ainfo_find(u_int32_t);
 static void check_hname(struct ainfo *);
 struct ainfo *newainfo(void);
 
+#ifdef USE_8021Q
 int ent_add(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
+#else
+int ent_add(u_int32_t a, u_char * e, time_t t, char *h)
+#endif
 {
 	struct ainfo *ap;
 	struct einfo *ep;
@@ -111,7 +121,11 @@ int ent_add(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
 		ep = ap->elist[0];
 		if(MEMCMP(e, ep->e, 6) == 0) {
 			if(t - ep->t > NEWACTIVITY_DELTA) {
+#ifdef USE_8021Q
 				report(ACTION_ACTIVITY, v, a, e, NULL, &t, &ep->t);
+#else
+				report(ACTION_ACTIVITY, a, e, NULL, &t, &ep->t);
+#endif
 				check_hname(ap);
 			}
 			ep->t = t;
@@ -122,8 +136,13 @@ int ent_add(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
 	/* Check for a virgin ainfo record */
 	if(ap->ecount == 0) {
 		ap->ecount = 1;
+#ifdef USE_8021Q
 		ap->elist[0] = elist_alloc(v, a, e, t, h);
 		report(ACTION_NEW, v, a, e, NULL, &t, NULL);
+#else
+		ap->elist[0] = elist_alloc(a, e, t, h);
+		report(ACTION_NEW, a, e, NULL, &t, NULL);
+#endif
 		return (1);
 	}
 
@@ -138,7 +157,11 @@ int ent_add(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
 			 */
 			t2 = ap->elist[0]->t;
 			e2 = ap->elist[0]->e;
+#ifdef USE_8021Q
 			report(ACTION_FLIPFLOP, v, a, e, e2, &t, &t2);
+#else
+			report(ACTION_FLIPFLOP, a, e, e2, &t, &t2);
+#endif
 			ap->elist[1] = ap->elist[0];
 			ap->elist[0] = ep;
 			ep->t = t;
@@ -153,7 +176,11 @@ int ent_add(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
 			/* An old entry comes to life */
 			e2 = ap->elist[0]->e;
 			t2 = ap->elist[0]->t;
+#ifdef USE_8021Q
 			report(ACTION_REUSED, v, a, e, e2, &t, &t2);
+#else
+			report(ACTION_REUSED, a, e, e2, &t, &t2);
+#endif
 			/* Shift entries down */
 			len = i * sizeof(ap->elist[0]);
 			BCOPY(&ap->elist[0], &ap->elist[1], len);
@@ -167,12 +194,20 @@ int ent_add(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
 	/* New ether address */
 	e2 = ap->elist[0]->e;
 	t2 = ap->elist[0]->t;
+#ifdef USE_8021Q
 	report(ACTION_CHANGED, v, a, e, e2, &t, &t2);
+#else
+	report(ACTION_CHANGED, a, e, e2, &t, &t2);
+#endif
 	/* Make room at head of list */
 	alist_alloc(ap);
 	len = ap->ecount * sizeof(ap->elist[0]);
 	BCOPY(&ap->elist[0], &ap->elist[1], len);
+#ifdef USE_8021Q
 	ap->elist[0] = elist_alloc(v, a, e, t, h);
+#else
+	ap->elist[0] = elist_alloc(a, e, t, h);
+#endif
 	++ap->ecount;
 	return (1);
 }
@@ -228,7 +263,11 @@ int ent_loop(ent_process fn)
 			for(j = 0; j < ap->ecount; ++j) {
 				ep = ap->elist[j];
 				/* and call the dumping function pointer */
+#ifdef USE_8021Q
 				(*fn)(ep->v, ap->a, ep->e, ep->t, ep->h);
+#else
+				(*fn)(ap->a, ep->e, ep->t, ep->h);
+#endif
 				
 				++n;
 			}
@@ -258,7 +297,11 @@ static void alist_alloc(struct ainfo *ap)
 }
 
 /* Allocate and initialize a elist struct */
+#ifdef USE_8021Q
 static struct einfo *elist_alloc(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
+#else
+static struct einfo *elist_alloc(u_int32_t a, u_char * e, time_t t, char *h)
+#endif
 {
 	struct einfo *ep;
 	u_int size;
@@ -288,7 +331,9 @@ static struct einfo *elist_alloc(u_int32_t v, u_int32_t a, u_char * e, time_t t,
 		strncpy(ep->h, h, sizeof(ep->h)-1);
 	}
 	ep->t = t;
+#ifdef USE_8021Q
 	ep->v = v;
+#endif
 
 	return (ep);
 }

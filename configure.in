@@ -33,6 +33,10 @@ AC_ARG_ENABLE( fancy-mac,
 [  --enable-fancy-mac	  always print MAC adresses in full xx:xx notation  [default=no]],,
 		enable_fancy_mac="no")
 
+AC_ARG_ENABLE( vlan-tag,
+[  --enable-vlan-tag	  enable support for 802.1Q vlan tags [default=no]],,
+		enable_vlan_tag="no")
+
 dnl The following generates a warning from autoconf...
 AC_C_BIGENDIAN
 
@@ -171,12 +175,17 @@ if test "x$enable_fancy_mac" = "xyes"; then
   	FANCY_MAC=1
 fi
 
+if test "x$enable_vlan_tag" = "xyes"; then
+  	USE_8021Q=1
+fi
+
 AC_SUBST(V_CCOPT)
 AC_SUBST(V_INCLS)
 AC_SUBST(V_PCAPDEP)
 AC_SUBST(V_SENDMAIL)
 AC_SUBST(LBL_LIBS)
 AC_SUBST(FANCY_MAC)
+AC_SUBST(USE_8021Q)
 AC_PROG_INSTALL
 
 AC_OUTPUT(Makefile)

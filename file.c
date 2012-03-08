@@ -62,7 +62,9 @@ int file_loop(FILE * f, file_process fn, const char *name)
 	int n;
 	char *cp, *cp2, *h;
 	u_int32_t a;
+#ifdef USE_8021Q
 	u_int32_t v = 0;
+#endif
 	time_t t;
 	struct hostent *hp;
 	char line[1024];
@@ -95,6 +97,7 @@ int file_loop(FILE * f, file_process fn, const char *name)
 			continue;
 		}
 
+#ifdef USE_8021Q
 		/* vlan is next */
 		cp = cp2;
 		if((cp2 = strchr(cp, '\t')) != NULL) {
@@ -102,6 +105,7 @@ int file_loop(FILE * f, file_process fn, const char *name)
 			++cp2;		//move to start of ip address
 		}
 		v = strtoul(cp,NULL,10);
+#endif
 
 		/* ip address is next */
 		cp = cp2;
@@ -134,7 +138,11 @@ int file_loop(FILE * f, file_process fn, const char *name)
 			}
 		}
 
+#ifdef USE_8021Q
 		if(!(*fn) (v, a, e, t, h))
+#else
+		if(!(*fn) (a, e, t, h))
+#endif
 			return (0);
 	}
 

@@ -28,7 +28,11 @@ enum {
 
 /* struct describing a report function */
 struct report_mode {
+#ifdef USE_8021Q
 	void (*func)(int , u_int32_t, u_int32_t, u_char *, u_char *, time_t *, time_t *);
+#else
+	void (*func)(int , u_int32_t, u_char *, u_char *, time_t *, time_t *);
+#endif
 	const char *name;
         unsigned int flags;
 };
@@ -36,7 +40,11 @@ struct report_mode {
 
 #define ACTION_MAX ACTION_ETHER_WRONGTYPE
 
+#ifdef USE_8021Q
 void report(int, u_int32_t, u_int32_t, u_char *, u_char *, time_t *, time_t *);
+#else
+void report(int, u_int32_t, u_char *, u_char *, time_t *, time_t *);
+#endif
 int setup_reportmode(int mode);
 int get_reportmodes(const struct report_mode **out);
 

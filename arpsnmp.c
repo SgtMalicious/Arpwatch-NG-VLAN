@@ -60,7 +60,11 @@
 /* Forwards */
 int main(int, char **);
 int readsnmp(char *);
+#ifdef USE_8021Q
 int snmp_add(u_int32_t, u_int32_t, u_char *, time_t, char *);
+#else
+int snmp_add(u_int32_t, u_char *, time_t, char *);
+#endif
 __dead void usage(void) __attribute__ ((volatile));
 
 char *prog;
@@ -144,7 +148,11 @@ int main(int argc, char **argv)
 
 static time_t now;
 
+#ifdef USE_8021Q
 int snmp_add(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
+#else
+int snmp_add(u_int32_t a, u_char * e, time_t t, char *h)
+#endif
 {
 	/* Watch for ethernet broadcast */
 	if(MEMCMP(e, zero, 6) == 0 || MEMCMP(e, allones, 6) == 0) {
@@ -159,7 +167,11 @@ int snmp_add(u_int32_t v, u_int32_t a, u_char * e, time_t t, char *h)
 	}
 
 	/* Use current time (although it would be nice to subtract idle time) */
+#ifdef USE_8021Q
 	return (ent_add(0, a, e, now, h));
+#else
+	return (ent_add(a, e, now, h));
+#endif
 }
 
 /* Process an snmp file */

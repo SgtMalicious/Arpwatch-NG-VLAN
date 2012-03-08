@@ -1,6 +1,10 @@
 void dosyslog(int, char *, u_int32_t, u_char *, u_char *);
 int dump(void);
+#ifdef USE_8021Q
 void dumpone(u_int32_t, u_int32_t, u_char *, time_t, char *);
+#else
+void dumpone(u_int32_t, u_char *, time_t, char *);
+#endif
 int readdata(void);
 char *savestr(const char *);
 #ifndef HAVE_STRNDUP

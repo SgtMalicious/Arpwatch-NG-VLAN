@@ -36,6 +36,7 @@ ETHERCODESDIR = $(prefix)/share/arpwatch
 
 # VPATH
 srcdir = @srcdir@
+datarootdir = @datarootdir@
 VPATH = @srcdir@
 
 #
@@ -47,12 +48,16 @@ PROG = arpwatch
 CCOPT = @V_CCOPT@
 INCLS = -I. @V_INCLS@
 FANCY_MAC=@FANCY_MAC@
+USE_8021Q=@USE_8021Q@
 DEFS = @DEFS@ -DARPDIR=\"$(ARPDIR)\" -DPATH_SENDMAIL=\"$(SENDMAIL)\" -DETHERCODESDIR=\"$(ETHERCODESDIR)\"
 
 ifeq ($(FANCY_MAC), 1)
 	DEFS += -DFANCY_MAC=1
 endif
 	
+ifeq ($(USE_8021Q), 1)
+	DEFS += -DUSE_8021Q=1
+endif
 
 # Standard CFLAGS
 CFLAGS = $(CCOPT) $(DEFS) $(INCLS) -Wall
